@@ -1,6 +1,8 @@
 import axios from "axios";
 import { useRouter } from "next/router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import Spinners from "./Spinners";
+import { ReactSortable } from "react-sortablejs";
 
 export default function ProductForm({
   _id,
@@ -8,16 +10,25 @@ export default function ProductForm({
   description: existingDescription,
   price: existingPrice,
   images: existingImages,
+  category: existingcategory,
 }) {
   const [title, setTitle] = useState(existingTitle || "");
   const [description, setDescription] = useState(existingDescription || "");
   const [price, SetPrice] = useState(existingPrice || "");
+  const [category, Setcategory] = useState(existingcategory || "");
   const [images, SetImages] = useState(existingImages || []);
   const [goToProduct, setGoToProduct] = useState(false);
+  const [isUploading, setisUploading] = useState(false);
+  const [categories, Setcategories] = useState([]);
   const router = useRouter();
+  useEffect(() => {
+    axios.get("/api/categories").then((result) => {
+      Setcategories(result.data);
+    });
+  }, []);
   async function saveProduct(ev) {
     ev.preventDefault();
-    const data = { title, description, price, images };
+    const data = { title, description, price, images, category };
     if (_id) {
       //update
 
@@ -35,6 +46,7 @@ export default function ProductForm({
   async function uploadImages(ev) {
     const files = ev.target?.files;
     if (files?.length > 0) {
+      setisUploading(true);
       const data = new FormData();
       for (const file of files) {
         data.append("file", file);
@@ -44,7 +56,11 @@ export default function ProductForm({
       SetImages((oldImages) => {
         return [...oldImages, ...res.data.links];
       });
+      setisUploading(false);
     }
+  }
+  function uploadImagesorder(images) {
+    SetImages(images);
   }
   return (
     <form onSubmit={saveProduct}>
@@ -55,14 +71,33 @@ export default function ProductForm({
         value={title}
         onChange={(ev) => setTitle(ev.target.value)}
       />
+      <label>
+        Category
+        <select value={category} onChange={(e) => Setcategory(e.target.value)}>
+          <option value="">Uncategorized</option>
+          {categories.length > 0 &&
+            categories.map((e) => <option value={e._id}>{e.name}</option>)}
+        </select>
+      </label>
       <label>Photos</label>
       <div className="mb-2 flex flex-wrap gap-2">
-        {!!images?.length &&
-          images.map((link) => (
-            <div key={link} className="h-24">
-              <img src={link} alt="" className=" rounded-lg" />
-            </div>
-          ))}
+        <ReactSortable
+          className="flex flex-wrap gap-1"
+          list={images}
+          setList={uploadImagesorder}
+        >
+          {!!images?.length &&
+            images.map((link) => (
+              <div key={link} className="h-24">
+                <img src={link} alt="" className=" rounded-lg" />
+              </div>
+            ))}
+        </ReactSortable>
+        {isUploading && (
+          <div className="h-24 p-1 flex items-center">
+            <Spinners />
+          </div>
+        )}
         <label className="w-24 h-24 border text-center flex items-center justify-center  text-sm gap-1 rounded-md bg-gray-300 cursor-pointer">
           <svg
             xmlns="http://www.w3.org/2000/svg"
